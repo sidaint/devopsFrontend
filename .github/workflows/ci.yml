@@ -1,86 +1,112 @@
-name: CI Pipeline
-
+name: SonarQube Analysis
 on:
   push:
-    branches: [main]
+    branches: [main, dev, production] # Add your main branch here
   pull_request:
-    branches: [main]
+    branches: [production, dev, test]
+    types: [opened, synchronize, reopened]
 
 jobs:
-  build:
+  sonarqube:
+    name: SonarQube Scan
     runs-on: ubuntu-latest
-    env:
-      SONARTOKEN: ${{ secrets.name: CI Pipeline
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      SONARTOKEN: ${{ secrets.SONARTOKEN }}
-      SNYKTOKEN: ${{ secrets.SNYKTOKEN }}
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Ensures full repository history is available for analysis
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Set up Node.js
+      # Create backend test structure
+      - name: Setup backend test structure
+        run: |
+          mkdir -p backend-flask/tests
+          touch backend-flask/tests/__init__.py
+          mv backend-flask/test_app.py backend-flask/tests/
+
+      # Create sonar properties
+      - name: Create sonar properties
+        run: |
+          cat > sonar-project.properties << 'EOL'
+          sonar.projectName=LMS System
+          sonar.sources=frontend-react/src,backend-flask
+          sonar.tests=frontend-react/src/__tests__,backend-flask/tests
+          sonar.exclusions=**/node_modules/**,**/*.test.js,**/*.test.tsx,**/tests/**,**/coverage/**
+          sonar.test.inclusions=**/*.test.js,**/*.test.tsx,**/test_*.py
+          sonar.python.coverage.reportPaths=backend-flask/coverage.xml
+          sonar.javascript.lcov.reportPaths=frontend-react/coverage/lcov.info
+          sonar.sourceEncoding=UTF-8
+          sonar.python.version=3.10
+          EOL
+
+      # Frontend setup and tests
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend-react/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: frontend-react
+        run: npm ci
+      
+      - name: Run frontend test
+        working-directory: frontend-react
+        run: npm test -- --coverage --watchAll=false --ci
 
-      - name: Install dependencies
-        run: npm install
+      # Create sonar properties again
+      - name: Create sonar properties
+        run: |
+          cat > sonar-project.properties << 'EOL'
+          sonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+          sonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+          sonar.projectName=LMS System
+          sonar.sources=frontend-react/src,backend-flask
+          sonar.tests=frontend-react/src/__tests__,backend-flask/tests
+          sonar.exclusions=**/node_modules/**,**/*.test.js,**/*.test.tsx,**/tests/**,**/coverage/**
+          sonar.test.inclusions=**/*.test.js,**/*.test.tsx,**/test_*.py
+          sonar.python.coverage.reportPaths=backend-flask/coverage.xml
+          sonar.javascript.lcov.reportPaths=frontend-react/coverage/lcov.info
+          sonar.sourceEncoding=UTF-8
+          sonar.python.version=3.10
+          EOL
 
-      - name: Run tests
-        run: npm test
+      # Backend setup and tests
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
 
+      - name: Install backend dependencies
+        working-directory: backend-flask
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run backend tests with coverage
+        working-directory: backend-flask
+        run: |
+          python -m pytest tests/ --cov=. --cov-report=xml --cov-report=term-missing
+
+      # SonarCloud scan
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v4
+        uses: SonarSource/sonarcloud-github-action@master
         env:
-          SONARTOKEN: ${{ secrets.SONARTOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Snyk Security Scan
-        uses: snyk/actions/node@master
-        env:
-          SNYKTOKEN: ${{ secrets.SNYKTOKEN }}
-        with:
-          args: test
- }}
-      SNYKTOKEN: ${{ secrets.Synk }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Ensures full repository history is available for analysis
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '14'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v4
-        env:
-          SONARTOKEN: ${{ secrets.SONARTOKEN }}
-
-      - name: Snyk Security Scan
-        uses: snyk/actions/node@master
-        env:
-          SNYKTOKEN: ${{ secrets.SNYKTOKEN }}
-        with:
-          args: test
+      # Create sonar-project.properties in root directory
+      - name: Create sonar-project.properties in root
+        run: |
+          cat > sonar-project.properties << 'EOL'
+          sonar.projectName=LMS System
+          sonar.sources=frontend-react/src,backend-flask
+          sonar.tests=frontend-react/src/__tests__,backend-flask/tests
+          sonar.exclusions=**/node_modules/**,**/*.test.js,**/*.test.tsx,**/tests/**,**/coverage/**
+          sonar.test.inclusions=**/*.test.js,**/*.test.tsx,**/test_*.py
+          sonar.python.coverage.reportPaths=backend-flask/coverage.xml
+          sonar.javascript.lcov.reportPaths=frontend-react/coverage/lcov.info
+          sonar.sourceEncoding=UTF-8
+          sonar.python.version=3.10
+          EOL
