@@ -1,16 +1,86 @@
-  name: CI Pipeline
+name: CI Pipeline
 
-  on:
-    push:
-      branches: [main]
-    pull_request:
-      branches: [main]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
-  jobs:
-    build:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v3
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SONARTOKEN: ${{ secrets.name: CI Pipeline
 
-        # Add build steps specific to your project here
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      SONARTOKEN: ${{ secrets.SONARTOKEN }}
+      SNYKTOKEN: ${{ secrets.SNYKTOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensures full repository history is available for analysis
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONARTOKEN: ${{ secrets.SONARTOKEN }}
+
+      - name: Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYKTOKEN: ${{ secrets.SNYKTOKEN }}
+        with:
+          args: test
+ }}
+      SNYKTOKEN: ${{ secrets.Synk }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensures full repository history is available for analysis
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONARTOKEN: ${{ secrets.SONARTOKEN }}
+
+      - name: Snyk Security Scan
+        uses: snyk/actions/node@master
+        env:
+          SNYKTOKEN: ${{ secrets.SNYKTOKEN }}
+        with:
+          args: test
